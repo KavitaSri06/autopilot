@@ -1,0 +1,478 @@
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
+
+// AI Business Autopilot - Single-file React Dashboard
+// All styles are JS objects. No external UI libs. Uses hooks only.
+
+const SAMPLE_LEADS = [
+  { id: 'l1', customer: 'Priya Kumar', query: 'Asked about facial pricing', source: 'Telegram', time: '2 mins ago', phone: '+91 90000 00001' },
+  { id: 'l2', customer: 'Ravi Shankar', query: 'Wants to book haircut tomorrow', source: 'Web', time: '15 mins ago', phone: '+91 90000 00002' },
+  { id: 'l3', customer: 'Anita Singh', query: 'Enquired about timings', source: 'Telegram', time: '1 hour ago', phone: '+91 90000 00003' },
+]
+
+// ---------- Styles (JS objects) ----------
+const COLORS = {
+  bg: '#ffffff',
+  primary: '#2563eb',
+  surface: '#f8fafc',
+  heading: '#0f172a',
+  secondary: '#64748b',
+}
+
+const layout = {
+  fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+  display: 'flex',
+  minHeight: '100vh',
+  background: COLORS.bg,
+  color: COLORS.heading,
+}
+
+const sidebarStyle = {
+  width: 240,
+  background: COLORS.surface,
+  padding: 24,
+  boxSizing: 'border-box',
+  borderRight: '1px solid rgba(15,23,42,0.04)',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'space-between',
+}
+
+const navItem = (active) => ({
+  padding: '10px 12px',
+  borderRadius: 8,
+  color: active ? COLORS.primary : COLORS.heading,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  cursor: 'pointer',
+  background: active ? 'rgba(37,99,235,0.06)' : 'transparent',
+})
+
+const mainStyle = {
+  flex: 1,
+  padding: 28,
+  boxSizing: 'border-box',
+}
+
+const card = {
+  background: COLORS.surface,
+  padding: 18,
+  borderRadius: 12,
+  boxShadow: '0 6px 18px rgba(2,6,23,0.04)',
+}
+
+const metricCardStyle = {
+  ...card,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+}
+
+const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+}
+
+const badgeStyle = (source) => ({
+  padding: '6px 10px',
+  borderRadius: 999,
+  background: source === 'Telegram' ? COLORS.primary : '#10b981',
+  color: '#fff',
+  fontSize: 12,
+})
+
+const smallMuted = { color: COLORS.secondary, fontSize: 13 }
+
+const transitionIn = { opacity: 1, transform: 'translateY(0)', transition: 'all 260ms ease' }
+const transitionOut = { opacity: 0, transform: 'translateY(6px)', transition: 'all 260ms ease' }
+
+// Inject spinner keyframes
+const SpinnerStyles = () => (
+  <style>{`@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }`}</style>
+)
+
+// ---------- Helper Components ----------
+function LoadingSpinner({ size = 28 }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <SpinnerStyles />
+      <div style={{ width: size, height: size, border: '3px solid rgba(15,23,42,0.08)', borderTop: `3px solid ${COLORS.primary}`, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+    </div>
+  )
+}
+
+function ErrorState({ message, onRetry }) {
+  return (
+    <div style={{ textAlign: 'center', padding: 24 }}>
+      <div style={{ color: '#ef4444', marginBottom: 12 }}>{message}</div>
+      <button onClick={onRetry} style={{ padding: '8px 12px', borderRadius: 8, background: COLORS.primary, color: '#fff', border: 'none', cursor: 'pointer' }}>Retry</button>
+    </div>
+  )
+}
+
+// ---------- Sidebar ----------
+function Sidebar({ active, setActive, business }) {
+  return (
+    <aside style={sidebarStyle}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 8, background: COLORS.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>AI</div>
+          <div>
+            <div style={{ fontWeight: 700 }}>AI Business Autopilot</div>
+            <div style={{ color: COLORS.secondary, fontSize: 12 }}>Automate customer communication</div>
+          </div>
+        </div>
+
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {['Dashboard', 'Leads', 'Conversations', 'Channels', 'Settings'].map((item) => (
+            <div key={item} onClick={() => setActive(item)} style={navItem(active === item)}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: active === item ? COLORS.primary : 'transparent' }} />
+              <div style={{ fontWeight: 600 }}>{item}</div>
+            </div>
+          ))}
+        </nav>
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <div style={{ ...smallMuted }}>Business</div>
+        <div style={{ fontWeight: 700 }}>{business?.name || 'Your Business'}</div>
+        <div style={{ ...smallMuted, marginTop: 6 }}>{business?.timezone || 'Local Time'}</div>
+      </div>
+    </aside>
+  )
+}
+
+// ---------- Top Bar ----------
+function TopBar({ greeting }) {
+  const today = new Date().toLocaleDateString()
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>{greeting}</div>
+        <div style={{ ...smallMuted }}>{today}</div>
+      </div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ ...card, padding: '8px 12px', borderRadius: 999, fontSize: 13 }}>Upgrade</div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Metric Card ----------
+function MetricCard({ title, value, change, icon }) {
+  return (
+    <div style={metricCardStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+        <div style={{ color: COLORS.primary }}>{icon}</div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ color: COLORS.secondary }}>{title}</div>
+        <div style={{ color: change >= 0 ? '#10b981' : '#ef4444', fontSize: 13 }}>{change >= 0 ? `+${change}%` : `${change}%`}</div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Dashboard Page ----------
+function DashboardPage({ leads, loading, error, onRetry }) {
+  const metrics = [
+    { title: 'Total Leads', value: leads.length + 120, change: 6.4, icon: '⬆' },
+    { title: 'Conversations Today', value: 48, change: 2.1, icon: '💬' },
+    { title: 'Telegram Messages', value: 312, change: 3.3, icon: '📨' },
+    { title: 'Web Widget Chats', value: 76, change: -1.2, icon: '🧩' },
+  ]
+
+  return (
+    <div>
+      <TopBar greeting="Good morning, Business Owner" />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
+        {metrics.map((m) => (
+          <MetricCard key={m.title} title={m.title} value={m.value} change={m.change} icon={m.icon} />
+        ))}
+      </div>
+
+      <div style={{ ...card }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontWeight: 700 }}>Recent Leads</div>
+          <div style={{ ...smallMuted }}>Showing latest</div>
+        </div>
+
+        {loading ? <LoadingSpinner /> : error ? <ErrorState message={error} onRetry={onRetry} /> : leads.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 36 }}>
+            <div style={{ fontSize: 48, color: '#e6eefc', marginBottom: 12 }}>🤝</div>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>No leads yet.</div>
+            <div style={{ ...smallMuted }}>Share your bot link to get started.</div>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: COLORS.secondary }}>
+                  <th style={{ padding: '12px 8px' }}>Customer</th>
+                  <th style={{ padding: '12px 8px' }}>Query</th>
+                  <th style={{ padding: '12px 8px' }}>Source</th>
+                  <th style={{ padding: '12px 8px' }}>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leads.slice(0, 6).map((l) => (
+                  <tr key={l.id} style={{ borderTop: '1px solid rgba(15,23,42,0.04)' }}>
+                    <td style={{ padding: '12px 8px' }}>
+                      <div style={{ fontWeight: 700 }}>{l.customer}</div>
+                      <div style={{ ...smallMuted }}>{l.phone}</div>
+                    </td>
+                    <td style={{ padding: '12px 8px' }}>{l.query}</td>
+                    <td style={{ padding: '12px 8px' }}><span style={badgeStyle(l.source)}>{l.source}</span></td>
+                    <td style={{ padding: '12px 8px', ...smallMuted }}>{l.time}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------- Leads Page ----------
+function LeadsPage({ leads }) {
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
+  const perPage = 8
+
+  const filtered = leads.filter((l) => (
+    l.customer.toLowerCase().includes(query.toLowerCase()) || l.query.toLowerCase().includes(query.toLowerCase()) || (l.phone || '').includes(query)
+  ))
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
+  const pageSlice = filtered.slice((page - 1) * perPage, page * perPage)
+
+  useEffect(() => { setPage(1) }, [query])
+
+  return (
+    <div>
+      <TopBar greeting="Leads" />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search leads by name, query or phone" style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(15,23,42,0.06)', width: 520 }} />
+        <div style={{ ...smallMuted }}>{filtered.length} results</div>
+      </div>
+
+      <div style={{ ...card }}>
+        <table style={tableStyle}>
+          <thead>
+            <tr style={{ textAlign: 'left', color: COLORS.secondary }}>
+              <th style={{ padding: '12px 8px' }}>Customer Name</th>
+              <th style={{ padding: '12px 8px' }}>Phone</th>
+              <th style={{ padding: '12px 8px' }}>Query</th>
+              <th style={{ padding: '12px 8px' }}>Channel</th>
+              <th style={{ padding: '12px 8px' }}>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pageSlice.map((l) => (
+              <tr key={l.id} style={{ borderTop: '1px solid rgba(15,23,42,0.04)', transition: 'background 160ms', cursor: 'default' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(2,6,23,0.02)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <td style={{ padding: '12px 8px', fontWeight: 700 }}>{l.customer}</td>
+                <td style={{ padding: '12px 8px' }}>{l.phone}</td>
+                <td style={{ padding: '12px 8px' }}>{l.query}</td>
+                <td style={{ padding: '12px 8px' }}><span style={badgeStyle(l.source)}>{l.source}</span></td>
+                <td style={{ padding: '12px 8px', ...smallMuted }}>{l.time}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+          <div style={{ ...smallMuted }}>Page {page} of {totalPages}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setPage(p => Math.max(1, p-1))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)', background: '#fff' }}>Prev</button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p+1))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)', background: '#fff' }}>Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Conversations Page ----------
+function ConversationsPage({ leads }) {
+  const [expanded, setExpanded] = useState(null)
+
+  // Derive simple conversations from leads for demo
+  const convs = leads.map((l, idx) => ({ id: l.id, title: l.customer, preview: l.query, time: l.time, messages: [
+    { from: 'customer', text: l.query, time: l.time },
+    { from: 'business', text: 'Thanks — we can help. When would you like to book?', time: 'just now' },
+  ] }))
+
+  return (
+    <div>
+      <TopBar greeting="Conversations" />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 16 }}>
+        <div style={{ ...card, maxHeight: '70vh', overflowY: 'auto' }}>
+          {convs.map(c => (
+            <div key={c.id} onClick={() => setExpanded(expanded === c.id ? null : c.id)} style={{ padding: 12, borderRadius: 8, marginBottom: 8, cursor: 'pointer', background: expanded === c.id ? 'rgba(37,99,235,0.04)' : 'transparent' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 700 }}>{c.title}</div>
+                <div style={{ ...smallMuted }}>{c.time}</div>
+              </div>
+              <div style={{ ...smallMuted, marginTop: 6 }}>{c.preview}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ ...card, maxHeight: '70vh', overflowY: 'auto' }}>
+          {expanded ? (
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>{convs.find(c=>c.id===expanded)?.title}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {convs.find(c=>c.id===expanded).messages.map((m, i) => (
+                  <div key={i} style={{ alignSelf: m.from === 'business' ? 'flex-end' : 'flex-start', background: m.from === 'business' ? COLORS.primary : 'rgba(15,23,42,0.04)', color: m.from === 'business' ? '#fff' : COLORS.heading, padding: '10px 12px', borderRadius: 8, maxWidth: '70%' }}>{m.text}</div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ ...smallMuted }}>Select a conversation to view messages</div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Channels Page ----------
+function ChannelsPage() {
+  const botLink = 'https://t.me/your_bot'
+  const widgetScript = `<script src=\"https://yourdomain.com/widget.js\"></script>`
+
+  const copy = async (txt) => { await navigator.clipboard.writeText(txt) }
+
+  return (
+    <div>
+      <TopBar greeting="Channels" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={card}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Telegram</div>
+          <div style={{ ...smallMuted, marginBottom: 8 }}>Status: <span style={{ color: COLORS.primary, fontWeight: 700 }}>Active</span></div>
+          <div style={{ marginBottom: 8 }}>@your_bot</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input readOnly value={botLink} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)' }} />
+            <button onClick={() => copy(botLink)} style={{ padding: '8px 12px', borderRadius: 8, background: COLORS.primary, color: '#fff', border: 'none' }}>Copy</button>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Web Widget</div>
+          <div style={{ ...smallMuted, marginBottom: 8 }}>Status: <span style={{ color: COLORS.primary, fontWeight: 700 }}>Active</span></div>
+          <div style={{ marginBottom: 8, fontSize: 13 }}>Embed script</div>
+          <pre style={{ background: '#0f172a', color: '#e6eefc', padding: 12, borderRadius: 8, overflowX: 'auto' }}>{widgetScript}</pre>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <button onClick={() => copy(widgetScript)} style={{ padding: '8px 12px', borderRadius: 8, background: COLORS.primary, color: '#fff', border: 'none' }}>Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Settings Page ----------
+function SettingsPage({ business, setBusiness }) {
+  const [form, setForm] = useState({ name: business?.name || '', services: business?.services || '', timings: business?.timings || '', pricing: business?.pricing || '', faqs: business?.faqs || '' })
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState(null)
+
+  useEffect(() => setForm({ name: business?.name || '', services: business?.services || '', timings: business?.timings || '', pricing: business?.pricing || '', faqs: business?.faqs || '' }), [business])
+
+  const save = async () => {
+    setSaving(true); setMsg(null)
+    try {
+      const id = business?.id || '1'
+      const res = await axios.put(`http://localhost:8000/business/${id}`, form)
+      setMsg('Saved successfully')
+      setBusiness({ ...business, ...form })
+    } catch (err) {
+      setMsg('Save failed')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div>
+      <TopBar greeting="Settings" />
+      <div style={{ ...card, maxWidth: 920 }}>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <label style={{ fontWeight: 700 }}>Business Name</label>
+          <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)' }} />
+
+          <label style={{ fontWeight: 700 }}>Services</label>
+          <textarea value={form.services} onChange={e=>setForm({...form,services:e.target.value})} style={{ padding: 12, borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)' }} rows={3} />
+
+          <label style={{ fontWeight: 700 }}>Timings</label>
+          <input value={form.timings} onChange={e=>setForm({...form,timings:e.target.value})} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)' }} />
+
+          <label style={{ fontWeight: 700 }}>Pricing</label>
+          <textarea value={form.pricing} onChange={e=>setForm({...form,pricing:e.target.value})} style={{ padding: 12, borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)' }} rows={3} />
+
+          <label style={{ fontWeight: 700 }}>FAQs</label>
+          <textarea value={form.faqs} onChange={e=>setForm({...form,faqs:e.target.value})} style={{ padding: 12, borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)' }} rows={3} />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 6 }}>
+            <button onClick={save} disabled={saving} style={{ padding: '10px 14px', borderRadius: 8, background: COLORS.primary, color: '#fff', border: 'none' }}>{saving ? 'Saving...' : 'Save'}</button>
+          </div>
+
+          {msg && <div style={{ marginTop: 8, ...smallMuted }}>{msg}</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Main App ----------
+export default function App() {
+  const [active, setActive] = useState('Dashboard')
+  const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [business, setBusiness] = useState({ id: '1', name: 'Demo Business', timezone: 'IST (UTC+5:30)' })
+
+  const fetchLeads = async () => {
+    setLoading(true); setError(null)
+    try {
+      const res = await axios.get('http://localhost:8000/leads')
+      const data = res.data && Array.isArray(res.data) ? res.data : []
+      if (data.length === 0) {
+        setLeads(SAMPLE_LEADS)
+      } else {
+        // normalize to expected shape
+        setLeads(data.map((d, i) => ({ id: d.id || `lead-${i}`, customer: d.customer || d.name || 'Customer', query: d.query || d.message || '', source: d.source || d.channel || 'Web', time: d.time || d.created_at || 'just now', phone: d.phone || '' })))
+      }
+    } catch (err) {
+      setError('Failed to fetch leads')
+      setLeads(SAMPLE_LEADS)
+    } finally { setLoading(false) }
+  }
+
+  // initial load + auto-refresh
+  useEffect(() => {
+    fetchLeads()
+    const id = setInterval(fetchLeads, 30000)
+    return () => clearInterval(id)
+  }, [])
+
+  const containerStyle = { ...mainStyle }
+
+  return (
+    <div style={layout}>
+      <Sidebar active={active} setActive={setActive} business={business} />
+      <main style={containerStyle}>
+        {active === 'Dashboard' && <div style={transitionIn}><DashboardPage leads={leads} loading={loading} error={error} onRetry={fetchLeads} /></div>}
+        {active === 'Leads' && <div style={transitionIn}><LeadsPage leads={leads} /></div>}
+        {active === 'Conversations' && <div style={transitionIn}><ConversationsPage leads={leads} /></div>}
+        {active === 'Channels' && <div style={transitionIn}><ChannelsPage /></div>}
+        {active === 'Settings' && <div style={transitionIn}><SettingsPage business={business} setBusiness={setBusiness} /></div>}
+      </main>
+    </div>
+  )
+}
