@@ -390,7 +390,7 @@ function SettingsPage({ business, setBusiness }) {
     const load = async () => {
       setLoadingBiz(true)
       try {
-        const res = await axios.get(`http://localhost:8000/business/${BUSINESS_ID}`)
+        const res = await axios.get(`https://ai-autopilot-backend-togt.onrender.com/business/${BUSINESS_ID}`)
         const b = res.data && res.data.business ? res.data.business : {}
         setForm(prev => ({ ...prev,
           name: b.name || '', category: b.category || 'Salon', address: b.address || '', contact_number: b.contact_number || '', services: b.services || '', pricing: b.pricing || '', timings: b.timings || '', faqs: b.faqs || '', appointment_required: !!b.appointment_required, walkins_welcome: !!b.walkins_welcome, booking_instructions: b.booking_instructions || '', special_notes: b.special_notes || '', telegram_chat_id: b.telegram_chat_id || ''
@@ -414,7 +414,7 @@ function SettingsPage({ business, setBusiness }) {
   const save = async () => {
     setSaving(true)
     try {
-      await axios.put(`http://localhost:8000/business/${BUSINESS_ID}`, form)
+      await axios.put(`https://ai-autopilot-backend-togt.onrender.com/business/${BUSINESS_ID}`, form)
       setToast({ type: 'success', message: 'Settings saved' })
       setBusiness({ ...business, ...form })
     } catch (err) {
@@ -556,7 +556,7 @@ export default function App() {
   const fetchLeads = async () => {
     setLoading(true); setError(null)
     try {
-      const res = await axios.get('http://localhost:8000/leads')
+      const res = await axios.get('https://ai-autopilot-backend-togt.onrender.com/leads')
       const data = res.data?.leads || []
       if (data.length === 0) {
         setLeads(SAMPLE_LEADS)
@@ -571,7 +571,7 @@ export default function App() {
 
   const fetchBusiness = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/business/967c5b1f-1376-4272-8be3-af82f65128db')
+      const res = await axios.get('https://ai-autopilot-backend-togt.onrender.com/business/967c5b1f-1376-4272-8be3-af82f65128db')
       if (res.data?.business) setBusiness(res.data.business)
     } catch (err) { console.log('Business fetch error:', err) }
   }

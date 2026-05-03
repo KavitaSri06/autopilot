@@ -1,7 +1,7 @@
 (function () {
 	const DEFAULT_CONFIG = {
     businessId: "967c5b1f-1376-4272-8be3-af82f65128db",
-    apiUrl: "http://localhost:8000",
+    apiUrl: "https://ai-autopilot-backend-togt.onrender.com",
 };
 	const state = {
 		config: null,
@@ -344,6 +344,6 @@
 
 	window.AutopilotWidget.init({
     businessId: "967c5b1f-1376-4272-8be3-af82f65128db",
-    apiUrl: "http://localhost:8000",
+    apiUrl: "https://ai-autopilot-backend-togt.onrender.com",
 });
 })();
