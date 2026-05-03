@@ -344,7 +344,7 @@ function ConversationsPage({ leads }) {
 // ---------- Channels Page ----------
 function ChannelsPage() {
   const botLink = 'https://t.me/your_bot'
-  const widgetScript = `<script src="https://yourdomain.com/widget.js"><\/script>`
+  const widgetScript = `<script src="https://yourdomain.com/widget.js"></script>`
 
   const copy = async (txt) => { await navigator.clipboard.writeText(txt) }
 
