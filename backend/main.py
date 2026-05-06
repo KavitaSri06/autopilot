@@ -57,14 +57,34 @@ def health() -> Dict[str, str]:
 
 @app.post("/chat")
 def chat(chat_request: ChatRequest) -> Dict[str, str]:
-	ai_reply = generate_ai_reply(
-		business_id=chat_request.business_id,
-		message=chat_request.message,
-	)
-	return {
-		"business_id": chat_request.business_id,
-		"reply": ai_reply,
-	}
+    from services.db_service import save_conversation, save_lead
+    
+    ai_reply = generate_ai_reply(
+        business_id=chat_request.business_id,
+        message=chat_request.message,
+    )
+    
+    # Save conversation to database
+    save_conversation(
+        business_id=chat_request.business_id,
+        customer_id="web-widget",
+        message=chat_request.message,
+        reply=ai_reply,
+    )
+    
+    # Save as lead
+    save_lead(
+        business_id=chat_request.business_id,
+        customer_name="Web Visitor",
+        phone="",
+        query=chat_request.message,
+        source="web",
+    )
+    
+    return {
+        "business_id": chat_request.business_id,
+        "reply": ai_reply,
+    }
 
 
 @app.get("/leads")
