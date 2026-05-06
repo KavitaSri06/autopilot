@@ -2,11 +2,947 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Widget Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karan's Salon Chennai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0d;
+            --bg-soft: #151515;
+            --card: rgba(255, 255, 255, 0.04);
+            --card-strong: rgba(255, 255, 255, 0.08);
+            --text: #ffffff;
+            --muted: #94a3b8;
+            --lavender: #c4b5fd;
+            --rose: #e8c4b8;
+            --border: rgba(255, 255, 255, 0.12);
+            --shadow: 0 24px 90px rgba(0, 0, 0, 0.45);
+            --radius-xl: 32px;
+            --radius-lg: 24px;
+            --radius-md: 18px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(196, 181, 253, 0.13), transparent 30%),
+                radial-gradient(circle at top right, rgba(232, 196, 184, 0.10), transparent 24%),
+                linear-gradient(180deg, #111111 0%, #0d0d0d 45%, #090909 100%);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.16;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px),
+                radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px),
+                radial-gradient(circle at 40% 70%, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px),
+                radial-gradient(circle at 60% 50%, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px);
+            background-size: 130px 130px, 170px 170px, 210px 210px, 240px 240px;
+            mix-blend-mode: screen;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 18%, transparent 82%, rgba(255, 255, 255, 0.025));
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .page-shell {
+            position: relative;
+            z-index: 1;
+        }
+
+        .container {
+            width: min(1180px, calc(100% - 40px));
+            margin: 0 auto;
+        }
+
+        .navbar {
+            position: fixed;
+            inset: 18px 0 auto;
+            z-index: 50;
+            transition: all 220ms ease;
+        }
+
+        .navbar.is-scrolled .nav-inner {
+            background: rgba(13, 13, 13, 0.82);
+            backdrop-filter: blur(28px) saturate(160%);
+            border-color: rgba(255, 255, 255, 0.16);
+            box-shadow: 0 16px 60px rgba(0, 0, 0, 0.42);
+        }
+
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 16px 22px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 999px;
+            backdrop-filter: blur(18px) saturate(135%);
+            box-shadow: 0 14px 42px rgba(0, 0, 0, 0.22);
+            transition: inherit;
+        }
+
+        .brand {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            letter-spacing: 0.32em;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.94);
+            white-space: nowrap;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .nav-links a {
+            position: relative;
+            font-size: 0.92rem;
+            color: rgba(255, 255, 255, 0.76);
+            transition: color 180ms ease;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -7px;
+            width: 100%;
+            height: 1px;
+            transform: scaleX(0);
+            transform-origin: left;
+            background: linear-gradient(90deg, var(--lavender), var(--rose));
+            transition: transform 180ms ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+        }
+
+        .nav-links a:hover::after {
+            transform: scaleX(1);
+        }
+
+        .nav-button {
+            padding: 12px 18px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(196, 181, 253, 0.95), rgba(232, 196, 184, 0.88));
+            color: #101010;
+            font-weight: 700;
+            font-size: 0.92rem;
+            white-space: nowrap;
+            box-shadow: 0 10px 26px rgba(196, 181, 253, 0.22);
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: grid;
+            align-items: center;
+            padding: 130px 0 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+            gap: 42px;
+            align-items: center;
+        }
+
+        .hero-copy {
+            position: relative;
+            animation: fadeUp 900ms ease both;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 22px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            color: rgba(255, 255, 255, 0.86);
+            font-size: 0.92rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .eyebrow span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--lavender);
+            box-shadow: 0 0 12px rgba(196, 181, 253, 0.9);
+        }
+
+        h1 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(3.6rem, 8vw, 4.75rem);
+            line-height: 1.1;
+            letter-spacing: -2px;
+            max-width: 12ch;
+        }
+
+        .hero-copy p {
+            max-width: 34rem;
+            margin: 22px 0 0;
+            font-size: clamp(1.05rem, 2vw, 1.18rem);
+            line-height: 1.8;
+            color: var(--muted);
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            margin-top: 34px;
+            flex-wrap: wrap;
+        }
+
+        .button {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 22px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            overflow: hidden;
+            isolation: isolate;
+            transition: transform 200ms ease, border-color 200ms ease, background 200ms ease;
+        }
+
+        .button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent 25%, rgba(255, 255, 255, 0.42), transparent 55%);
+            transform: translateX(-120%);
+            transition: transform 500ms ease;
+            z-index: -1;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+        }
+
+        .button:hover::before {
+            transform: translateX(120%);
+        }
+
+        .button.outline {
+            color: var(--text);
+            border-color: rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .button.filled {
+            color: #101010;
+            background: linear-gradient(135deg, rgba(196, 181, 253, 0.98), rgba(232, 196, 184, 0.92));
+            box-shadow: 0 18px 40px rgba(196, 181, 253, 0.18);
+        }
+
+        .hero-visual {
+            position: relative;
+            min-height: 540px;
+            display: grid;
+            place-items: center;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(8px);
+            opacity: 0.92;
+            animation: float 9s ease-in-out infinite;
+        }
+
+        .orb.one {
+            width: 260px;
+            height: 260px;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.75), rgba(196, 181, 253, 0.72) 30%, rgba(196, 181, 253, 0.08) 68%, transparent 72%);
+            top: 10%;
+            right: 12%;
+        }
+
+        .orb.two {
+            width: 190px;
+            height: 190px;
+            background: radial-gradient(circle at 40% 35%, rgba(255, 255, 255, 0.55), rgba(232, 196, 184, 0.62) 35%, rgba(232, 196, 184, 0.05) 70%, transparent 74%);
+            bottom: 14%;
+            left: 8%;
+            animation-delay: -2s;
+        }
+
+        .orb.three {
+            width: 110px;
+            height: 110px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.4), rgba(196, 181, 253, 0.24) 45%, transparent 72%);
+            top: 18%;
+            left: 18%;
+            animation-delay: -4s;
+        }
+
+        .hero-card {
+            position: relative;
+            width: min(100%, 420px);
+            aspect-ratio: 4 / 5;
+            padding: 28px;
+            border-radius: 34px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+            border: 1px solid rgba(255, 255, 255, 0.11);
+            backdrop-filter: blur(18px);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            background: linear-gradient(160deg, rgba(196, 181, 253, 0.18), transparent 38%, rgba(232, 196, 184, 0.12));
+            pointer-events: none;
+        }
+
+        .hero-card .topline,
+        .hero-card .caption {
+            position: relative;
+            z-index: 1;
+        }
+
+        .topline {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.88);
+            font-size: 0.94rem;
+        }
+
+        .topline strong {
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.16em;
+        }
+
+        .caption {
+            display: grid;
+            gap: 16px;
+        }
+
+        .caption .title {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(2.5rem, 4vw, 3.4rem);
+            line-height: 0.96;
+            letter-spacing: -0.05em;
+        }
+
+        .caption p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.72);
+            line-height: 1.8;
+        }
+
+        section {
+            padding: 108px 0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 32px;
+        }
+
+        .section-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(2.2rem, 4vw, 3rem);
+            letter-spacing: -0.05em;
+            margin: 0;
+        }
+
+        .section-number {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(4rem, 9vw, 7rem);
+            line-height: 0.85;
+            letter-spacing: -0.08em;
+            color: rgba(255, 255, 255, 0.08);
+            user-select: none;
+        }
+
+        .section-subtitle {
+            margin: 0;
+            color: var(--muted);
+            max-width: 34rem;
+            line-height: 1.75;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .service-card {
+            position: relative;
+            min-height: 250px;
+            padding: 24px;
+            border-radius: var(--radius-xl);
+            background: var(--card);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+            transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+            overflow: hidden;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, rgba(196, 181, 253, 0.12), transparent 38%), radial-gradient(circle at bottom left, rgba(232, 196, 184, 0.08), transparent 44%);
+            opacity: 0;
+            transition: opacity 220ms ease;
+        }
+
+        .service-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(196, 181, 253, 0.34);
+            box-shadow: 0 24px 55px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(196, 181, 253, 0.12);
+        }
+
+        .service-card:hover::before {
+            opacity: 1;
+        }
+
+        .service-index {
+            position: relative;
+            z-index: 1;
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.1rem;
+            color: rgba(255, 255, 255, 0.18);
+            margin-bottom: 28px;
+        }
+
+        .service-name {
+            position: relative;
+            z-index: 1;
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            line-height: 1;
+            margin: 0 0 18px;
+            letter-spacing: -0.04em;
+        }
+
+        .service-price {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            color: rgba(255, 255, 255, 0.88);
+            font-size: 0.92rem;
+        }
+
+        .timings-layout,
+        .story-layout {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .info-panel {
+            padding: 28px;
+            border-radius: var(--radius-xl);
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+        }
+
+        .timings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+        }
+
+        .timings-table th,
+        .timings-table td {
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+            text-align: left;
+            font-size: 0.98rem;
+        }
+
+        .timings-table th {
+            color: rgba(255, 255, 255, 0.86);
+            font-weight: 600;
+        }
+
+        .timings-table td {
+            color: var(--muted);
+        }
+
+        .location-block {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background:
+                linear-gradient(180deg, rgba(196, 181, 253, 0.10), rgba(255, 255, 255, 0.03)),
+                rgba(255, 255, 255, 0.035);
+        }
+
+        .location-tag {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 9px 12px;
+            border-radius: 999px;
+            background: rgba(196, 181, 253, 0.08);
+            border: 1px solid rgba(196, 181, 253, 0.18);
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 18px;
+        }
+
+        .location-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(2rem, 4vw, 3rem);
+            line-height: 1;
+            letter-spacing: -0.05em;
+            margin: 0 0 14px;
+        }
+
+        .location-block p,
+        .story-copy p,
+        .footer-copy p {
+            color: var(--muted);
+            line-height: 1.8;
+        }
+
+        .story-layout {
+            gap: 24px;
+        }
+
+        .story-figure {
+            position: relative;
+            min-height: 360px;
+            display: flex;
+            align-items: flex-end;
+            overflow: hidden;
+        }
+
+        .story-figure .section-number {
+            position: absolute;
+            inset: 18px 18px auto auto;
+            font-size: clamp(7rem, 14vw, 10rem);
+        }
+
+        .story-quote {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.9rem, 4vw, 3.1rem);
+            line-height: 1.15;
+            letter-spacing: -0.05em;
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.96);
+            max-width: 11ch;
+            position: relative;
+            z-index: 1;
+        }
+
+        .story-copy {
+            display: grid;
+            gap: 18px;
+        }
+
+        .footer {
+            padding: 42px 0 26px;
+            border-top: 1px solid rgba(196, 181, 253, 0.26);
+            box-shadow: inset 0 1px 0 rgba(196, 181, 253, 0.08);
+            background: linear-gradient(180deg, rgba(196, 181, 253, 0.04), transparent);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .footer-logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.55rem;
+            letter-spacing: 0.2em;
+            margin-bottom: 14px;
+        }
+
+        .footer-tagline {
+            max-width: 22rem;
+            margin: 0 0 18px;
+            color: rgba(255, 255, 255, 0.76);
+        }
+
+        .footer-meta {
+            display: grid;
+            gap: 12px;
+            color: var(--muted);
+        }
+
+        .footer-meta strong {
+            color: var(--text);
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .footer-bottom {
+            margin-top: 28px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(148, 163, 184, 0.9);
+            font-size: 0.92rem;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(26px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate3d(0, 0, 0) scale(1);
+            }
+            50% {
+                transform: translate3d(0, -18px, 0) scale(1.04);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .hero-grid,
+            .services-grid,
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .services-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                width: min(100% - 24px, 1180px);
+            }
+
+            .navbar {
+                inset: 10px 0 auto;
+            }
+
+            .nav-inner {
+                padding: 14px 16px;
+                border-radius: 24px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .nav-links {
+                width: 100%;
+                justify-content: flex-start;
+                gap: 14px 18px;
+            }
+
+            .hero {
+                padding-top: 150px;
+            }
+
+            .hero-grid,
+            .timings-layout,
+            .story-layout,
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-visual {
+                min-height: 380px;
+            }
+
+            .hero-card {
+                width: 100%;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .section-number {
+                font-size: clamp(3.2rem, 16vw, 5rem);
+            }
+
+            section {
+                padding: 84px 0;
+            }
+
+            h1 {
+                max-width: 100%;
+                font-size: clamp(2.7rem, 12vw, 4rem);
+            }
+
+            .hero-copy p,
+            .section-subtitle,
+            .story-copy p,
+            .footer-tagline {
+                max-width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Sample Salon Chennai</h1>
-    <p>Welcome to our salon website!</p>
+    <div class="page-shell">
+        <!-- Navbar -->
+        <header class="navbar" id="navbar">
+            <div class="container">
+                <div class="nav-inner">
+                    <div class="brand">KARAN'S</div>
+                    <nav class="nav-links" aria-label="Primary">
+                        <a href="#services">Craft</a>
+                        <a href="#timings">Find Us</a>
+                        <a href="#about">Story</a>
+                    </nav>
+                    <a class="nav-button" href="#timings">Book Now</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero -->
+        <main>
+            <section class="hero">
+                <div class="container hero-grid">
+                    <div class="hero-copy">
+                        <div class="eyebrow"><span></span> Premium salon experience in Chennai</div>
+                        <h1>Where Beauty Meets Artistry</h1>
+                        <p>Chennai's most aesthetic salon experience, designed for clients who want every appointment to feel cinematic, intimate, and unmistakably elevated.</p>
+                        <div class="hero-actions">
+                            <a class="button outline" href="#services">Explore Services</a>
+                            <a class="button filled" href="#timings">Book Appointment</a>
+                        </div>
+                    </div>
+
+                    <div class="hero-visual" aria-hidden="true">
+                        <div class="orb one"></div>
+                        <div class="orb two"></div>
+                        <div class="orb three"></div>
+                        <div class="hero-card">
+                            <div class="topline">
+                                <strong>Luxury Reimagined</strong>
+                                <span>Anna Nagar</span>
+                            </div>
+                            <div class="caption">
+                                <div class="title">Soft light.<br>Sharp detail.<br>High taste.</div>
+                                <p>A glass-led atmosphere with curated calm, refined service, and fashion-forward energy from the first glance to the final mirror check.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Services -->
+            <section id="services">
+                <div class="container">
+                    <div class="section-header">
+                        <div>
+                            <div class="section-number">01</div>
+                            <h2 class="section-label">Our Craft</h2>
+                        </div>
+                        <p class="section-subtitle">A tight edit of signature treatments, styled to feel like luxury product cards with just enough contrast, glass, and shadow to keep the experience floating.</p>
+                    </div>
+
+                    <div class="services-grid">
+                        <article class="service-card">
+                            <div class="service-index">01</div>
+                            <h3 class="service-name">Haircut</h3>
+                            <div class="service-price">From Rs 200</div>
+                        </article>
+                        <article class="service-card">
+                            <div class="service-index">02</div>
+                            <h3 class="service-name">Facial</h3>
+                            <div class="service-price">From Rs 500</div>
+                        </article>
+                        <article class="service-card">
+                            <div class="service-index">03</div>
+                            <h3 class="service-name">Manicure</h3>
+                            <div class="service-price">From Rs 300</div>
+                        </article>
+                        <article class="service-card">
+                            <div class="service-index">04</div>
+                            <h3 class="service-name">Pedicure</h3>
+                            <div class="service-price">From Rs 350</div>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Timings -->
+            <section id="timings">
+                <div class="container">
+                    <div class="section-header">
+                        <div>
+                            <div class="section-number">02</div>
+                            <h2 class="section-label">Find Us</h2>
+                        </div>
+                        <p class="section-subtitle">Simple, clean, and direct. A premium layout for visitors who want the essentials without losing the mood.</p>
+                    </div>
+
+                    <div class="timings-layout">
+                        <div class="info-panel">
+                            <h3 class="location-title">Timings</h3>
+                            <table class="timings-table">
+                                <tbody>
+                                    <tr>
+                                        <th>Mon - Sat</th>
+                                        <td>9:00 AM - 8:00 PM</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Sunday</th>
+                                        <td>10:00 AM - 6:00 PM</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="info-panel location-block">
+                            <div>
+                                <div class="location-tag">Anna Nagar, Chennai</div>
+                                <h3 class="location-title">Visit Karan's Salon for a polished, modern escape in the city.</h3>
+                                <p>Made for easy access, warm service, and a quietly dramatic atmosphere that feels exclusive without trying too hard.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- About -->
+            <section id="about">
+                <div class="container">
+                    <div class="section-header">
+                        <div>
+                            <div class="section-number">03</div>
+                            <h2 class="section-label">Our Story</h2>
+                        </div>
+                        <p class="section-subtitle">An intimate brand moment with asymmetry, oversized type, and a story that feels handcrafted rather than templated.</p>
+                    </div>
+
+                    <div class="story-layout">
+                        <div class="info-panel story-figure">
+                            <div class="section-number">03</div>
+                            <p class="story-quote">Karan's Salon was born from a passion for making every client feel their most confident self.</p>
+                        </div>
+                        <div class="info-panel story-copy">
+                            <p>We blend precise technique, premium products, and a calming design language so every appointment feels intentional, elevated, and deeply personal.</p>
+                            <p>From the first hello to the final reveal, the experience is crafted to feel tactile, modern, and emotionally memorable.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-grid">
+                    <div>
+                        <div class="footer-logo">KARAN'S</div>
+                        <p class="footer-tagline">Ultra-premium salon experiences in Anna Nagar, Chennai, designed with an aesthetic that feels bold, refined, and cinematic.</p>
+                    </div>
+                    <div class="footer-meta">
+                        <div>
+                            <strong>Address</strong>
+                            Anna Nagar, Chennai
+                        </div>
+                        <div>
+                            <strong>Phone</strong>
+                            +91 98765 43210
+                        </div>
+                    </div>
+                    <div class="footer-meta">
+                        <div>
+                            <strong>Tagline</strong>
+                            Beauty, reimagined with modern taste.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="footer-bottom">Copyright © 2026 Karan's Salon Chennai. All rights reserved.</div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const navbar = document.getElementById('navbar');
+
+        const updateNavbarState = () => {
+            if (window.scrollY > 18) {
+                navbar.classList.add('is-scrolled');
+            } else {
+                navbar.classList.remove('is-scrolled');
+            }
+        };
+
+        window.addEventListener('scroll', updateNavbarState, { passive: true });
+        updateNavbarState();
+    </script>
     <script src="./chat.js"></script>
 </body>
 </html>

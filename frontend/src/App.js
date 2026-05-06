@@ -297,13 +297,43 @@ function LeadsPage({ leads }) {
 }
 
 // ---------- Conversations Page ----------
-function ConversationsPage({ leads }) {
-  const [expanded, setExpanded] = useState(null)
+function ConversationsPage() {
+  const [conversations, setConversations] = useState([])
+  const [selectedId, setSelectedId] = useState(null)
+  const [loadingConversations, setLoadingConversations] = useState(true)
 
-  const convs = leads.map((l, idx) => ({ id: l.id, title: l.customer, preview: l.query, time: l.time, messages: [
-    { from: 'customer', text: l.query, time: l.time },
-    { from: 'business', text: 'Thanks — we can help. When would you like to book?', time: 'just now' },
-  ] }))
+  useEffect(() => {
+    const fetchConversations = async () => {
+      setLoadingConversations(true)
+      try {
+        const res = await axios.get('https://ai-autopilot-backend-togt.onrender.com/conversations')
+        const data = res.data?.conversations || []
+        setConversations(data)
+        setSelectedId((currentSelectedId) => currentSelectedId || data[0]?.id || null)
+      } catch (err) {
+        console.log('Conversations fetch error:', err)
+        setConversations([])
+      } finally {
+        setLoadingConversations(false)
+      }
+    }
+
+    fetchConversations()
+  }, [])
+
+  const selectedConversation = conversations.find((conversation) => conversation.id === selectedId) || null
+
+  const formatConversationTime = (createdAt) => {
+    if (!createdAt) return 'just now'
+    const date = new Date(createdAt)
+    if (Number.isNaN(date.getTime())) return 'just now'
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  }
+
+  const previewText = (message) => {
+    if (!message) return ''
+    return message.length > 64 ? `${message.slice(0, 64)}...` : message
+  }
 
   return (
     <div>
@@ -311,29 +341,62 @@ function ConversationsPage({ leads }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 16 }}>
         <div style={{ ...card, maxHeight: '70vh', overflowY: 'auto' }}>
-          {convs.map(c => (
-            <div key={c.id} onClick={() => setExpanded(expanded === c.id ? null : c.id)} style={{ padding: 12, borderRadius: 8, marginBottom: 8, cursor: 'pointer', background: expanded === c.id ? 'rgba(37,99,235,0.04)' : 'transparent' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontWeight: 700 }}>{c.title}</div>
-                <div style={{ ...smallMuted }}>{c.time}</div>
-              </div>
-              <div style={{ ...smallMuted, marginTop: 6 }}>{c.preview}</div>
+          {loadingConversations ? (
+            <LoadingSpinner />
+          ) : conversations.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 36 }}>
+              <div style={{ fontSize: 48, color: '#e6eefc', marginBottom: 12 }}>💬</div>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>No conversations yet.</div>
+              <div style={{ ...smallMuted }}>New customer chats will appear here once they arrive.</div>
             </div>
-          ))}
+          ) : (
+            conversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                onClick={() => setSelectedId(conversation.id)}
+                style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 8,
+                  cursor: 'pointer',
+                  background: selectedId === conversation.id ? 'rgba(37,99,235,0.04)' : 'transparent',
+                  border: selectedId === conversation.id ? '1px solid rgba(37,99,235,0.10)' : '1px solid transparent',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conversation.customer_id}</div>
+                  <div style={{ ...smallMuted, whiteSpace: 'nowrap' }}>{formatConversationTime(conversation.created_at)}</div>
+                </div>
+                <div style={{ ...smallMuted, marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{previewText(conversation.message)}</div>
+              </div>
+            ))
+          )}
         </div>
 
         <div style={{ ...card, maxHeight: '70vh', overflowY: 'auto' }}>
-          {expanded ? (
+          {loadingConversations ? (
+            <LoadingSpinner />
+          ) : !selectedConversation ? (
+            <div style={{ ...smallMuted }}>Select a conversation to view messages</div>
+          ) : (
             <div>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>{convs.find(c=>c.id===expanded)?.title}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {convs.find(c=>c.id===expanded).messages.map((m, i) => (
-                  <div key={i} style={{ alignSelf: m.from === 'business' ? 'flex-end' : 'flex-start', background: m.from === 'business' ? COLORS.primary : 'rgba(15,23,42,0.04)', color: m.from === 'business' ? '#fff' : COLORS.heading, padding: '10px 12px', borderRadius: 8, maxWidth: '70%' }}>{m.text}</div>
-                ))}
+              <div style={{ fontWeight: 700, marginBottom: 8 }}>{selectedConversation.customer_id}</div>
+              <div style={{ ...smallMuted, marginBottom: 14 }}>
+                {selectedConversation.source || 'web'} · {formatConversationTime(selectedConversation.created_at)}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ background: 'rgba(15,23,42,0.05)', color: COLORS.heading, padding: '12px 14px', borderRadius: '16px 16px 16px 4px', maxWidth: '72%', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                    {selectedConversation.message}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ background: COLORS.primary, color: '#fff', padding: '12px 14px', borderRadius: '16px 16px 4px 16px', maxWidth: '72%', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                    {selectedConversation.reply}
+                  </div>
+                </div>
               </div>
             </div>
-          ) : (
-            <div style={{ ...smallMuted }}>Select a conversation to view messages</div>
           )}
         </div>
       </div>
@@ -589,7 +652,7 @@ export default function App() {
       <main style={mainStyle}>
         {active === 'Dashboard' && <div style={transitionIn}><DashboardPage leads={leads} loading={loading} error={error} onRetry={fetchLeads} /></div>}
         {active === 'Leads' && <div style={transitionIn}><LeadsPage leads={leads} /></div>}
-        {active === 'Conversations' && <div style={transitionIn}><ConversationsPage leads={leads} /></div>}
+        {active === 'Conversations' && <div style={transitionIn}><ConversationsPage /></div>}
         {active === 'Channels' && <div style={transitionIn}><ChannelsPage /></div>}
         {active === 'Settings' && <div style={transitionIn}><SettingsPage business={business} setBusiness={setBusiness} /></div>}
       </main>

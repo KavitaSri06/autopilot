@@ -35,18 +35,27 @@ def send_telegram_message(chat_id: int, text: str) -> bool:
 		return False
 
 
-def _extract_message_payload(update: Dict[str, Any]) -> tuple[Optional[int], Optional[str]]:
+def _extract_message_payload(update: Dict[str, Any]) -> tuple[Optional[int], Optional[str], str]:
 	message = update.get("message") or {}
+	sender = message.get("from") or {}
 	chat = message.get("chat") or {}
 	chat_id = chat.get("id")
 	text = message.get("text")
-	return chat_id, text
+	first_name = (sender.get("first_name") or "").strip()
+	last_name = (sender.get("last_name") or "").strip()
+	username = (sender.get("username") or "").strip()
+
+	customer_name = f"{first_name} {last_name}".strip()
+	if not customer_name:
+		customer_name = username or "Customer"
+
+	return chat_id, text, customer_name
 
 
 @router.post("/webhook/telegram", status_code=200)
 def telegram_webhook(update: Dict[str, Any]) -> Dict[str, str]:
 	try:
-		chat_id, text = _extract_message_payload(update)
+		chat_id, text, customer_name = _extract_message_payload(update)
 		if not chat_id or not text:
 			return {"status": "ignored"}
 
@@ -54,7 +63,6 @@ def telegram_webhook(update: Dict[str, Any]) -> Dict[str, str]:
 		reply = generate_ai_reply(business_id, text)
 		send_telegram_message(chat_id, reply)
 
-		customer_name = ""
 		phone = ""
 		source = "telegram"
 		save_lead(business_id, customer_name, phone, text, source)
