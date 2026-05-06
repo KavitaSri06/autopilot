@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from typing import Any, Dict
@@ -35,6 +36,41 @@ def _mentions_booking(message: str) -> bool:
 	keywords = ["book", "booking", "appointment", "schedule", "reserve"]
 	lower_message = message.lower()
 	return any(keyword in lower_message for keyword in keywords)
+
+
+def extract_lead_info(message: str) -> Dict[str, str]:
+	"""Extract name and phone number from a customer message using Gemini."""
+	try:
+		if not GEMINI_API_KEY:
+			return {"name": "", "phone": ""}
+
+		prompt = (
+			'Extract the person\'s name and phone number from this message. '
+			'Return ONLY a JSON object like this exact format: '
+			'{"name": "extracted name", "phone": "extracted phone"} '
+			'If name not found return empty string. '
+			'If phone not found return empty string. '
+			f'Message: {message}'
+		)
+
+		model = genai.GenerativeModel("gemini-2.5-flash")
+		result = model.generate_content(prompt)
+		response_text = (result.text or "").strip()
+
+		if not response_text:
+			return {"name": "", "phone": ""}
+
+		try:
+			extracted = json.loads(response_text)
+			return {
+				"name": (extracted.get("name") or "").strip(),
+				"phone": (extracted.get("phone") or "").strip(),
+			}
+		except json.JSONDecodeError:
+			return {"name": "", "phone": ""}
+	except Exception as exc:
+		print(f"extract_lead_info error: {exc}")
+		return {"name": "", "phone": ""}
 
 
 def get_business_info(business_id: str) -> Dict[str, Any]:
@@ -90,8 +126,16 @@ def generate_ai_reply(business_id: str, message: str) -> str:
 			f"Pricing: {business_info['pricing']}. "
 			f"FAQs: {business_info['faqs']}. "
 			"Give a concise helpful reply in under 3 sentences. "
-			"If the customer asks about booking or appointments, ask for their name and phone number."
+			"After answering the customer\'s first question, always end your reply by asking: "
+			"\"May I know your name and phone number so we can follow up with you personally? 😊\" "
+			"If the customer shares their name and phone number in any message, acknowledge it warmly with: "
+			"\"Thank you [name]! We\'ve noted your details and will follow up with you shortly.\""
 		)
+
+		# Extract lead info to detect if customer shared name and phone
+		extracted_info = extract_lead_info(message)
+		customer_name = extracted_info.get("name", "").strip()
+		customer_phone = extracted_info.get("phone", "").strip()
 
 		model = genai.GenerativeModel("gemini-2.5-flash")
 		result = model.generate_content(f"{system_prompt}\n\nCustomer message: {message}")
@@ -102,10 +146,10 @@ def generate_ai_reply(business_id: str, message: str) -> str:
 
 		reply_text = _limit_to_three_sentences(reply_text)
 
-		if _mentions_booking(message):
-			request_contact = "Please share your name and phone number so we can confirm your booking."
-			if "phone" not in reply_text.lower() and "name" not in reply_text.lower():
-				reply_text = _limit_to_three_sentences(f"{reply_text} {request_contact}")
+		# If customer provided name and phone, add acknowledgement
+		if customer_name and customer_phone:
+			acknowledge = f"Thank you {customer_name}! We\'ve noted your details and will follow up with you shortly."
+			reply_text = _limit_to_three_sentences(f"{reply_text} {acknowledge}")
 
 		return reply_text
 	except Exception as exc:
