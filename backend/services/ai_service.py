@@ -86,16 +86,22 @@ def extract_lead_info(message: str) -> Dict[str, str]:
 		return {"name": "", "phone": ""}
 
 
-def get_business_info(business_id: str) -> Dict[str, Any]:
-	"""Fetch business profile details from Supabase businesses table."""
-	default_profile: Dict[str, Any] = {
-		"name": "Business",
-		"services": "Not provided",
-		"timings": "Not provided",
-		"pricing": "Not provided",
-		"faqs": "Not provided",
-	}
+class BusinessProfileUnavailable(Exception):
+	"""The business profile could not be loaded.
 
+	Callers must refuse to answer rather than substitute placeholders. A profile
+	of "Not provided" fields does not stop Gemini replying — it just makes it
+	improvise pricing and timings for a real business, with nothing to signal
+	the failure to the customer or the owner.
+	"""
+
+
+def get_business_info(business_id: str) -> Dict[str, Any]:
+	"""Fetch business profile details from Supabase.
+
+	Raises BusinessProfileUnavailable if the profile cannot be loaded, for
+	either reason: the database is unreachable, or no such business exists.
+	"""
 	try:
 		supabase = _get_supabase_client()
 		response = (
@@ -105,22 +111,28 @@ def get_business_info(business_id: str) -> Dict[str, Any]:
 			.limit(1)
 			.execute()
 		)
-
-		rows = response.data or []
-		if not rows:
-			return default_profile
-
-		row = rows[0]
-		return {
-			"name": row.get("name") or default_profile["name"],
-			"services": row.get("services") or default_profile["services"],
-			"timings": row.get("timings") or default_profile["timings"],
-			"pricing": row.get("pricing") or default_profile["pricing"],
-			"faqs": row.get("faqs") or default_profile["faqs"],
-		}
 	except Exception as exc:
-		print(f"get_business_info error: {exc}")
-		return default_profile
+		print(f"get_business_info error for {business_id}: {exc}")
+		raise BusinessProfileUnavailable(f"profile lookup failed: {exc}") from exc
+
+	rows = response.data or []
+	if not rows:
+		# Reachable with the database perfectly healthy: /chat takes business_id
+		# from the request body by design, so any caller can name a business
+		# that does not exist.
+		print(f"get_business_info: no business row for {business_id}")
+		raise BusinessProfileUnavailable(f"no such business: {business_id}")
+
+	# Field-level defaults are fine — a business that left `pricing` blank is a
+	# different thing from a profile we could not load at all.
+	row = rows[0]
+	return {
+		"name": row.get("name") or "Business",
+		"services": row.get("services") or "Not provided",
+		"timings": row.get("timings") or "Not provided",
+		"pricing": row.get("pricing") or "Not provided",
+		"faqs": row.get("faqs") or "Not provided",
+	}
 
 
 def generate_ai_reply(business_id: str, message: str) -> Tuple[str, Dict[str, str]]:
