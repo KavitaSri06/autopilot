@@ -410,10 +410,26 @@ function ConversationsPage() {
 
 // ---------- Channels Page ----------
 function ChannelsPage() {
-  const botLink = 'https://t.me/your_bot'
-  const widgetScript = `<script src="https://yourdomain.com/widget.js"></script>`
+  // Both cards previously read "Status: Active" in green, unconditionally —
+  // including the web widget, which is not published anywhere, and a Telegram
+  // handle of "@your_bot". Same class of defect as the fabricated dashboard
+  // leads: the UI asserted a state it had never checked.
+  const BOT_USERNAME = ''   // set once the bot is registered
+  const WIDGET_HOST = ''    // set once the widget is published
+  const botLink = BOT_USERNAME ? `https://t.me/${BOT_USERNAME}` : ''
+  const widgetScript = WIDGET_HOST
+    ? `<script src="https://${WIDGET_HOST}/chat.js"></script>`
+    : ''
 
   const copy = async (txt) => { await navigator.clipboard.writeText(txt) }
+
+  const StatusBadge = ({ configured }) => (
+    <div style={{ ...smallMuted, marginBottom: 8 }}>
+      Status: <span style={{ color: configured ? COLORS.primary : '#b45309', fontWeight: 700 }}>
+        {configured ? 'Active' : 'Setup required'}
+      </span>
+    </div>
+  )
 
   return (
     <div>
@@ -421,22 +437,39 @@ function ChannelsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={card}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Telegram</div>
-          <div style={{ ...smallMuted, marginBottom: 8 }}>Status: <span style={{ color: COLORS.primary, fontWeight: 700 }}>Active</span></div>
-          <div style={{ marginBottom: 8 }}>@your_bot</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input readOnly value={botLink} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)' }} />
-            <button onClick={() => copy(botLink)} style={{ padding: '8px 12px', borderRadius: 8, background: COLORS.primary, color: '#fff', border: 'none' }}>Copy</button>
-          </div>
+          <StatusBadge configured={!!BOT_USERNAME} />
+          {BOT_USERNAME ? (
+            <>
+              <div style={{ marginBottom: 8 }}>@{BOT_USERNAME}</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input readOnly value={botLink} style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.06)' }} />
+                <button onClick={() => copy(botLink)} style={{ padding: '8px 12px', borderRadius: 8, background: COLORS.primary, color: '#fff', border: 'none' }}>Copy</button>
+              </div>
+            </>
+          ) : (
+            <div style={{ ...smallMuted }}>
+              Register a bot with @BotFather, then set its username here to get your shareable link.
+            </div>
+          )}
         </div>
 
         <div style={card}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Web Widget</div>
-          <div style={{ ...smallMuted, marginBottom: 8 }}>Status: <span style={{ color: COLORS.primary, fontWeight: 700 }}>Active</span></div>
-          <div style={{ marginBottom: 8, fontSize: 13 }}>Embed script</div>
-          <pre style={{ background: '#0f172a', color: '#e6eefc', padding: 12, borderRadius: 8, overflowX: 'auto' }}>{widgetScript}</pre>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-            <button onClick={() => copy(widgetScript)} style={{ padding: '8px 12px', borderRadius: 8, background: COLORS.primary, color: '#fff', border: 'none' }}>Copy</button>
-          </div>
+          <StatusBadge configured={!!WIDGET_HOST} />
+          {WIDGET_HOST ? (
+            <>
+              <div style={{ marginBottom: 8, fontSize: 13 }}>Embed script</div>
+              <pre style={{ background: '#0f172a', color: '#e6eefc', padding: 12, borderRadius: 8, overflowX: 'auto' }}>{widgetScript}</pre>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <button onClick={() => copy(widgetScript)} style={{ padding: '8px 12px', borderRadius: 8, background: COLORS.primary, color: '#fff', border: 'none' }}>Copy</button>
+              </div>
+            </>
+          ) : (
+            <div style={{ ...smallMuted }}>
+              The widget is not published yet. Once it is hosted, the embed snippet appears here for
+              you to paste into your site.
+            </div>
+          )}
         </div>
       </div>
     </div>
