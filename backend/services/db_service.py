@@ -17,10 +17,18 @@ def get_supabase_client() -> Client:
 	return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def get_all_leads() -> List[Dict[str, Any]]:
+def get_all_leads(business_id: str) -> List[Dict[str, Any]]:
+	"""Leads for one business. The filter is required, not optional — the
+	unfiltered version returned every tenant's customer records to any caller."""
 	try:
 		supabase = get_supabase_client()
-		response = supabase.table("leads").select("*").order("created_at", desc=True).execute()
+		response = (
+			supabase.table("leads")
+			.select("*")
+			.eq("business_id", business_id)
+			.order("created_at", desc=True)
+			.execute()
+		)
 		return response.data or []
 	except Exception as exc:
 		print(f"get_all_leads error: {exc}")

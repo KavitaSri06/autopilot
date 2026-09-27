@@ -3,11 +3,12 @@ import os
 from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from services.ai_service import generate_ai_reply
+from services.auth import require_owner
 from services.db_service import get_all_leads, get_supabase_client
 from routes.telegram import router as telegram_router
 
@@ -20,7 +21,10 @@ app.include_router(telegram_router)
 app.add_middleware(
 	CORSMiddleware,
 	allow_origins=["*"],
-	allow_credentials=True,
+	# False because the owner endpoints authenticate with a bearer token, not a
+	# cookie. Reflecting an arbitrary origin AND allowing credentials is the
+	# combination that makes any site able to act as a signed-in user.
+	allow_credentials=False,
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
@@ -97,16 +101,24 @@ def chat(chat_request: ChatRequest) -> Dict[str, str]:
 
 
 @app.get("/leads")
-def leads() -> Dict[str, Any]:
-	leads_data = get_all_leads()
+def leads(business_id: str = Depends(require_owner)) -> Dict[str, Any]:
+	# business_id comes from the token, never from the caller. Previously this
+	# returned every tenant's leads to anyone, with no filter at all.
+	leads_data = get_all_leads(business_id)
 	return {"leads": leads_data}
 
 
 @app.get("/conversations")
-def get_conversations() -> Dict[str, Any]:
+def get_conversations(business_id: str = Depends(require_owner)) -> Dict[str, Any]:
 	try:
 		supabase = get_supabase_client()
-		response = supabase.table("conversations").select("*").order("created_at", desc=True).execute()
+		response = (
+			supabase.table("conversations")
+			.select("*")
+			.eq("business_id", business_id)
+			.order("created_at", desc=True)
+			.execute()
+		)
 		conversations_data = response.data or []
 		return {"conversations": conversations_data}
 	except Exception as exc:
@@ -114,11 +126,22 @@ def get_conversations() -> Dict[str, Any]:
 		raise HTTPException(status_code=500, detail=str(exc))
 
 
+def _authorize_business(path_business_id: str, token_business_id: str) -> str:
+	"""Reject a path id that is not the token's own business."""
+	if path_business_id != token_business_id:
+		raise HTTPException(status_code=403, detail="Not your business")
+	return token_business_id
+
+
 @app.get("/business/{business_id}")
-def get_business(business_id: str) -> Dict[str, Any]:
+def get_business(
+	business_id: str,
+	owner_business_id: str = Depends(require_owner),
+) -> Dict[str, Any]:
+	_authorize_business(business_id, owner_business_id)
 	try:
 		supabase = get_supabase_client()
-		response = supabase.table("businesses").select("*").eq("id", business_id).execute()
+		response = supabase.table("businesses").select("*").eq("id", owner_business_id).execute()
 		businesses = response.data or []
 		if not businesses:
 			raise HTTPException(status_code=404, detail="Business not found")
@@ -131,7 +154,12 @@ def get_business(business_id: str) -> Dict[str, Any]:
 
 
 @app.put("/business/{business_id}")
-def update_business(business_id: str, business_update: BusinessUpdate) -> Dict[str, Any]:
+def update_business(
+	business_id: str,
+	business_update: BusinessUpdate,
+	owner_business_id: str = Depends(require_owner),
+) -> Dict[str, Any]:
+	_authorize_business(business_id, owner_business_id)
 	try:
 		supabase = get_supabase_client()
 		
@@ -142,7 +170,12 @@ def update_business(business_id: str, business_update: BusinessUpdate) -> Dict[s
 			raise HTTPException(status_code=400, detail="No fields to update")
 		
 		# Update the business record
-		response = supabase.table("businesses").update(update_payload).eq("id", business_id).execute()
+		response = (
+			supabase.table("businesses")
+			.update(update_payload)
+			.eq("id", owner_business_id)
+			.execute()
+		)
 		updated_businesses = response.data or []
 		
 		if not updated_businesses:

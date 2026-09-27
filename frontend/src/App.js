@@ -4,6 +4,34 @@ import axios from 'axios'
 // AI Business Autopilot - Single-file React Dashboard
 // All styles are JS objects. No external UI libs. Uses hooks only.
 
+// ---------- Owner token ----------
+// The token is pasted in once and kept in localStorage. Deliberately NOT a
+// REACT_APP_ env var: CRA inlines those into the public JS bundle at build time,
+// which would publish the token to anyone who views source.
+const TOKEN_KEY = 'autopilot.ownerToken'
+
+const readToken = () => {
+  // Can throw or come back empty in private windows and with site data blocked.
+  try { return localStorage.getItem(TOKEN_KEY) || '' } catch { return '' }
+}
+
+const writeToken = (t) => {
+  try { localStorage.setItem(TOKEN_KEY, t) } catch { /* in-memory only this session */ }
+}
+
+const clearToken = () => {
+  try { localStorage.removeItem(TOKEN_KEY) } catch { /* nothing to clear */ }
+}
+
+// Set once on the shared axios instance rather than per call site. There are
+// five of them; threading a header through each is how one gets missed.
+const applyToken = (t) => {
+  if (t) axios.defaults.headers.common.Authorization = `Bearer ${t}`
+  else delete axios.defaults.headers.common.Authorization
+}
+
+applyToken(readToken())
+
 // ---------- Styles (JS objects) ----------
 const COLORS = {
   bg: '#ffffff',
@@ -656,8 +684,57 @@ function SettingsPage({ business, setBusiness }) {
   )
 }
 
+// ---------- Token gate ----------
+function TokenGate({ onSubmit, error }) {
+  const [value, setValue] = useState('')
+
+  const submit = (e) => {
+    e.preventDefault()
+    const t = value.trim()
+    if (t) onSubmit(t)
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg, padding: 16 }}>
+      <form onSubmit={submit} style={{ ...card, width: '100%', maxWidth: 440 }}>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>AI Business Autopilot</div>
+        <div style={{ ...smallMuted, marginBottom: 16 }}>
+          Paste your owner token to open the dashboard. It is stored in this browser only.
+        </div>
+
+        <label htmlFor="owner-token" style={{ fontWeight: 700, display: 'block', marginBottom: 6 }}>
+          Owner token
+        </label>
+        <input
+          id="owner-token"
+          type="password"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Paste token"
+          style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.12)', width: '100%', marginBottom: 12 }}
+        />
+
+        {error && (
+          <div role="alert" style={{ color: '#b91c1c', fontSize: 13, marginBottom: 12 }}>{error}</div>
+        )}
+
+        <button
+          type="submit"
+          disabled={!value.trim()}
+          style={{ width: '100%', padding: '12px 18px', borderRadius: 10, background: value.trim() ? COLORS.primary : COLORS.secondary, color: '#fff', border: 'none', cursor: value.trim() ? 'pointer' : 'not-allowed' }}
+        >
+          Open dashboard
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // ---------- Main App ----------
 export default function App() {
+  const [token, setToken] = useState(readToken)
+  const [authError, setAuthError] = useState(null)
   const [active, setActive] = useState('Dashboard')
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
@@ -686,12 +763,41 @@ export default function App() {
     } catch (err) { console.log('Business fetch error:', err) }
   }
 
+  // A rejected token must drop back to the paste screen. Without this the
+  // dashboard retries forever and the only way out is clearing site data by hand.
   useEffect(() => {
+    const id = axios.interceptors.response.use(
+      (res) => res,
+      (err) => {
+        if (err?.response?.status === 401) {
+          clearToken()
+          applyToken('')
+          setToken('')
+          setAuthError('That token was rejected. Paste a valid one.')
+        }
+        return Promise.reject(err)
+      },
+    )
+    return () => axios.interceptors.response.eject(id)
+  }, [])
+
+  useEffect(() => {
+    if (!token) return
     fetchLeads()
     fetchBusiness()
     const id = setInterval(fetchLeads, 30000)
     return () => clearInterval(id)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  const acceptToken = (t) => {
+    writeToken(t)
+    applyToken(t)
+    setAuthError(null)
+    setToken(t)
+  }
+
+  if (!token) return <TokenGate onSubmit={acceptToken} error={authError} />
 
   return (
     <div style={layout}>
