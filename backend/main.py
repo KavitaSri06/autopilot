@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from services.ai_service import generate_ai_reply
 from services.db_service import get_all_leads, get_supabase_client
@@ -28,7 +28,10 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
 	business_id: str
-	message: str
+	# /chat is a public, unauthenticated LLM proxy by design (the widget runs
+	# anonymously on third-party sites). An uncapped message length makes it a
+	# billing amplifier, so bound it at the edge.
+	message: str = Field(min_length=1, max_length=2000)
 
 
 class BusinessUpdate(BaseModel):
@@ -58,15 +61,15 @@ def health() -> Dict[str, str]:
 @app.post("/chat")
 def chat(chat_request: ChatRequest) -> Dict[str, str]:
     from services.db_service import save_conversation, save_lead
-    from services.ai_service import extract_lead_info
 
-    ai_reply = generate_ai_reply(
+    # generate_ai_reply already extracts the lead info to decide whether to
+    # acknowledge the customer, so it hands it back rather than us paying for a
+    # second identical Gemini call on the same string.
+    ai_reply, lead_info = generate_ai_reply(
         business_id=chat_request.business_id,
         message=chat_request.message,
     )
 
-    # Try to extract name and phone from message
-    lead_info = extract_lead_info(chat_request.message)
     customer_name = lead_info.get("name") or "Web Visitor"
     customer_phone = lead_info.get("phone") or ""
 

@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -13,6 +13,16 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# Model id is config, not code: gemini-2.5-flash is retired on 2026-10-16, and
+# swapping it should be an env change rather than a deploy.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+# Output caps. Generous on purpose — 2.5-flash spends thinking tokens against
+# this budget and cannot be told not to on SDK 0.8.3, so a tight cap would
+# starve the text response. These exist to bound cost, not to trim replies.
+LEAD_EXTRACTION_MAX_TOKENS = 512
+REPLY_MAX_TOKENS = 1024
 
 if GEMINI_API_KEY:
 	genai.configure(api_key=GEMINI_API_KEY)
@@ -53,8 +63,11 @@ def extract_lead_info(message: str) -> Dict[str, str]:
 			f'Message: {message}'
 		)
 
-		model = genai.GenerativeModel("gemini-2.5-flash")
-		result = model.generate_content(prompt)
+		model = genai.GenerativeModel(GEMINI_MODEL)
+		result = model.generate_content(
+			prompt,
+			generation_config={"max_output_tokens": LEAD_EXTRACTION_MAX_TOKENS},
+		)
 		response_text = (result.text or "").strip()
 
 		if not response_text:
@@ -110,8 +123,13 @@ def get_business_info(business_id: str) -> Dict[str, Any]:
 		return default_profile
 
 
-def generate_ai_reply(business_id: str, message: str) -> str:
-	"""Generate an assistant reply grounded in business profile data."""
+def generate_ai_reply(business_id: str, message: str) -> Tuple[str, Dict[str, str]]:
+	"""Generate an assistant reply grounded in business profile data.
+
+	Returns (reply_text, lead_info). The lead info is extracted here anyway to
+	decide whether to acknowledge the customer's details, so it is returned
+	rather than made callers pay for a second identical Gemini call.
+	"""
 	try:
 		if not GEMINI_API_KEY:
 			raise ValueError("GEMINI_API_KEY is not configured")
@@ -137,8 +155,11 @@ def generate_ai_reply(business_id: str, message: str) -> str:
 		customer_name = extracted_info.get("name", "").strip()
 		customer_phone = extracted_info.get("phone", "").strip()
 
-		model = genai.GenerativeModel("gemini-2.5-flash")
-		result = model.generate_content(f"{system_prompt}\n\nCustomer message: {message}")
+		model = genai.GenerativeModel(GEMINI_MODEL)
+		result = model.generate_content(
+			f"{system_prompt}\n\nCustomer message: {message}",
+			generation_config={"max_output_tokens": REPLY_MAX_TOKENS},
+		)
 		reply_text = (result.text or "").strip()
 
 		if not reply_text:
@@ -151,10 +172,10 @@ def generate_ai_reply(business_id: str, message: str) -> str:
 			acknowledge = f"Thank you {customer_name}! We\'ve noted your details and will follow up with you shortly."
 			reply_text = _limit_to_three_sentences(f"{reply_text} {acknowledge}")
 
-		return reply_text
+		return reply_text, {"name": customer_name, "phone": customer_phone}
 	except Exception as exc:
 		print(f"generate_ai_reply error: {exc}")
 		return (
 			"Sorry, something went wrong on our side. "
 			"Please try again in a moment."
-		)
+		), {"name": "", "phone": ""}

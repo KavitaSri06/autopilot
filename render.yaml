@@ -16,3 +16,7 @@ services:
         sync: false
       - key: DEFAULT_BUSINESS_ID
         sync: false
+      - key: GEMINI_MODEL
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false

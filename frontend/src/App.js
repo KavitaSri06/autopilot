@@ -4,12 +4,6 @@ import axios from 'axios'
 // AI Business Autopilot - Single-file React Dashboard
 // All styles are JS objects. No external UI libs. Uses hooks only.
 
-const SAMPLE_LEADS = [
-  { id: 'l1', customer: 'Priya Kumar', query: 'Asked about facial pricing', source: 'Telegram', time: '2 mins ago', phone: '+91 90000 00001' },
-  { id: 'l2', customer: 'Ravi Shankar', query: 'Wants to book haircut tomorrow', source: 'Web', time: '15 mins ago', phone: '+91 90000 00002' },
-  { id: 'l3', customer: 'Anita Singh', query: 'Enquired about timings', source: 'Telegram', time: '1 hour ago', phone: '+91 90000 00003' },
-]
-
 // ---------- Styles (JS objects) ----------
 const COLORS = {
   bg: '#ffffff',
@@ -84,7 +78,10 @@ const badgeStyle = (source) => ({
 
 const smallMuted = { color: COLORS.secondary, fontSize: 13 }
 
-const transitionIn = { opacity: 1, transform: 'translateY(0)', transition: 'all 260ms ease' }
+// transform must stay 'none'. Any other value (even translateY(0)) makes this
+// wrapper a containing block for position:fixed descendants, which orphans the
+// Settings Save button and the toast — on the only page that writes data.
+const transitionIn = { opacity: 1, transform: 'none', transition: 'all 260ms ease' }
 
 // Inject spinner keyframes
 const SpinnerStyles = () => (
@@ -168,7 +165,9 @@ function MetricCard({ title, value, change, icon }) {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ color: COLORS.secondary }}>{title}</div>
-        <div style={{ color: change >= 0 ? '#10b981' : '#ef4444', fontSize: 13 }}>{change >= 0 ? `+${change}%` : `${change}%`}</div>
+        {change === null || change === undefined ? null : (
+          <div style={{ color: change >= 0 ? '#10b981' : '#ef4444', fontSize: 13 }}>{change >= 0 ? `+${change}%` : `${change}%`}</div>
+        )}
       </div>
     </div>
   )
@@ -176,11 +175,16 @@ function MetricCard({ title, value, change, icon }) {
 
 // ---------- Dashboard Page ----------
 function DashboardPage({ leads, loading, error, onRetry }) {
+  // Derived from the leads actually returned by the API. These were previously
+  // hardcoded (leads.length + 120, 48, 312, 76) with invented deltas, so the
+  // dashboard reported activity the business had never had. No historical
+  // baseline is stored yet, so no percentage change is shown rather than a
+  // fabricated one.
   const metrics = [
-    { title: 'Total Leads', value: leads.length + 120, change: 6.4, icon: '⬆' },
-    { title: 'Conversations Today', value: 48, change: 2.1, icon: '💬' },
-    { title: 'Telegram Messages', value: 312, change: 3.3, icon: '📨' },
-    { title: 'Web Widget Chats', value: 76, change: -1.2, icon: '🧩' },
+    { title: 'Total Leads', value: leads.length, icon: '⬆' },
+    { title: 'Conversations Today', value: '—', icon: '💬' },
+    { title: 'Telegram Leads', value: leads.filter((l) => l.source === 'Telegram').length, icon: '📨' },
+    { title: 'Web Widget Leads', value: leads.filter((l) => l.source === 'Web').length, icon: '🧩' },
   ]
 
   return (
@@ -448,6 +452,11 @@ function SettingsPage({ business, setBusiness }) {
   const [loadingBiz, setLoadingBiz] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
+  // If the profile never loaded, `form` still holds its blank initial state.
+  // Saving that would PUT empty strings over the live profile — and the backend
+  // accepts empty strings — silently wiping the data that feeds the AI's system
+  // prompt. There is no backup, so the save is blocked rather than warned about.
+  const [loadFailed, setLoadFailed] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -459,8 +468,10 @@ function SettingsPage({ business, setBusiness }) {
           name: b.name || '', category: b.category || 'Salon', address: b.address || '', contact_number: b.contact_number || '', services: b.services || '', pricing: b.pricing || '', timings: b.timings || '', faqs: b.faqs || '', appointment_required: !!b.appointment_required, walkins_welcome: !!b.walkins_welcome, booking_instructions: b.booking_instructions || '', special_notes: b.special_notes || '', telegram_chat_id: b.telegram_chat_id || ''
         }))
         setBusiness(b)
+        setLoadFailed(false)
       } catch (err) {
-        setToast({ type: 'error', message: 'Failed to load business' })
+        setLoadFailed(true)
+        setToast({ type: 'error', message: 'Failed to load business — saving is disabled to protect your profile' })
       } finally { setLoadingBiz(false) }
     }
     load()
@@ -475,6 +486,10 @@ function SettingsPage({ business, setBusiness }) {
   const handleChange = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
   const save = async () => {
+    if (loadFailed) {
+      setToast({ type: 'error', message: 'Cannot save: your profile never loaded. Reload the page first.' })
+      return
+    }
     setSaving(true)
     try {
       await axios.put(`https://ai-autopilot-backend-togt.onrender.com/business/${BUSINESS_ID}`, form)
@@ -597,7 +612,7 @@ function SettingsPage({ business, setBusiness }) {
       {/* Fixed save button bottom-right */}
       <div style={{ position: 'fixed', right: 28, bottom: 28, display: 'flex', gap: 10, alignItems: 'center' }}>
         {loadingBiz && <div style={{ ...card, padding: 12 }}>Loading...</div>}
-        <button onClick={save} disabled={saving} style={{ padding: '12px 18px', borderRadius: 10, background: COLORS.primary, color: '#fff', border: 'none', boxShadow: '0 6px 18px rgba(2,6,23,0.08)' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
+        <button onClick={save} disabled={saving || loadFailed} title={loadFailed ? 'Your profile failed to load. Reload the page before saving.' : undefined} style={{ padding: '12px 18px', borderRadius: 10, background: (saving || loadFailed) ? COLORS.secondary : COLORS.primary, color: '#fff', border: 'none', boxShadow: '0 6px 18px rgba(2,6,23,0.08)', cursor: (saving || loadFailed) ? 'not-allowed' : 'pointer' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
       </div>
 
       {/* Toast */}
@@ -621,14 +636,13 @@ export default function App() {
     try {
       const res = await axios.get('https://ai-autopilot-backend-togt.onrender.com/leads')
       const data = res.data?.leads || []
-      if (data.length === 0) {
-        setLeads(SAMPLE_LEADS)
-      } else {
-        setLeads(data.map((d, i) => ({ id: d.id, customer: d.customer_name || 'Unknown', query: d.query || '', source: d.source ? d.source.charAt(0).toUpperCase() + d.source.slice(1) : 'Web', time: d.created_at ? new Date(d.created_at).toLocaleString() : 'just now', phone: d.phone || '' })))
-      }
+      // An empty result means no leads. Substituting placeholder rows here made
+      // the real empty state below unreachable and showed fake customers with
+      // dialable phone numbers as if they were real.
+      setLeads(data.map((d) => ({ id: d.id, customer: d.customer_name || 'Unknown', query: d.query || '', source: d.source ? d.source.charAt(0).toUpperCase() + d.source.slice(1) : 'Web', time: d.created_at ? new Date(d.created_at).toLocaleString() : 'just now', phone: d.phone || '' })))
     } catch (err) {
       setError('Failed to fetch leads')
-      setLeads(SAMPLE_LEADS)
+      setLeads([])
     } finally { setLoading(false) }
   }
 
