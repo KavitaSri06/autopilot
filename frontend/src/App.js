@@ -443,10 +443,11 @@ function ChannelsPage() {
   // handle of "@your_bot". Same class of defect as the fabricated dashboard
   // leads: the UI asserted a state it had never checked.
   const BOT_USERNAME = ''   // set once the bot is registered
-  const WIDGET_HOST = ''    // set once the widget is published
+  // The widget is served from this deployment by frontend/scripts/copy-widget.js.
+  const WIDGET_HOST = 'ai-autopilot-dashboard-roan.vercel.app'
   const botLink = BOT_USERNAME ? `https://t.me/${BOT_USERNAME}` : ''
   const widgetScript = WIDGET_HOST
-    ? `<script src="https://${WIDGET_HOST}/chat.js"></script>`
+    ? `<script src="https://${WIDGET_HOST}/widget/chat.js"></script>`
     : ''
 
   const copy = async (txt) => { await navigator.clipboard.writeText(txt) }
